@@ -11,7 +11,13 @@ int main(int argc, char* argv[])
         // Args check
         if (argc < 2)
         {
-            std::cout << "Error: Input file not specified!\n";
+            std::cout << "Error: Input file not specified!\n\n";
+            std::cout << "Examples: " <<"\n";
+            std::cout << "\n";
+            std::cout << "GenshinPCKunpacker.exe " << "\"" << "Music0.pck" << "\"" << "\n";
+            std::cout << "GenshinPCKunpacker.exe " << "\"" << "N:\\Genshin Impact game\\GenshinImpact_Data\\StreamingAssets\\AudioAssets\\Music0.pck" << "\"";
+            std::cout << "\n";
+
             return -1;
         }
 

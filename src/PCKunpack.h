@@ -3,8 +3,14 @@
 
 int InitiateUnpack(std::ifstream& stream, std::string& file);
 
-void ParseHeader(std::ifstream& stream);
+int ParseHeader(std::ifstream& stream);
 
-void ParsePCKCategoryChunk(std::ifstream& stream);
+int ParsePCKCategoryChunk(std::ifstream& stream);
 
-void UnpackFromPCK(std::ifstream& stream);
+void UnpackFileFromTable(std::ifstream& pckFile, std::string& outFile, uint32_t& offset, uint32_t size);
+
+int UnpackBNK(std::ifstream& stream);
+
+int UnpackWEM(std::ifstream& stream);
+
+int UnpackWEMType2(std::ifstream& stream);

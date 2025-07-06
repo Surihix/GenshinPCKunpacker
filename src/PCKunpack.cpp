@@ -5,20 +5,24 @@
 #include <string>
 #include <cstdio>
 
-std::string extractDir;
-bool dirDel;
-uint32_t pckCategoryChunkSize = 0;
-std::string* categoryBuffer;
-bool isBankPCK;
-uint32_t pckCategoryCount;
+typedef struct Header
+{
+    char magic[4];
+    uint32_t dataStartRelative;
+    uint32_t unkVal;
+    uint32_t pckCategoryChunkSize;
+    uint32_t bnkEntryTableSize;
+    uint32_t wemEntryTableSize;
+    uint32_t wemType2EntryTableSize;
+};
 
-typedef struct PCKCategoryEntry
+typedef struct PCKCategoryEntryTable
 {
     uint32_t offset;
     uint32_t id;
 };
 
-typedef struct TrackOrBankEntry
+typedef struct BNKEntryTable
 {
     uint32_t id;
     uint32_t unkVal;
@@ -27,81 +31,90 @@ typedef struct TrackOrBankEntry
     uint32_t categoryId;
 };
 
-void ParseHeader(std::ifstream& pckFile)
+typedef struct WEMEntryTable
 {
-    // Read header data
-    uint32_t dataStartRelative;
-    uint32_t unkVal = 0;
-    uint32_t bankEntryTableSize, trackEntryTableSize;
+    uint32_t id;
+    uint32_t unkVal;
+    uint32_t size;
+    uint32_t offset;
+    uint32_t categoryId;
+};
 
-    ReadBytesUInt32(dataStartRelative, pckFile);
-    ReadBytesUInt32(unkVal, pckFile);
-    ReadBytesUInt32(pckCategoryChunkSize, pckFile);
+typedef struct WEMType2EntryTable
+{
+    uint32_t id;
+    uint32_t unkVal;
+    uint32_t unkVal2;
+    uint32_t size;
+    uint32_t offset;
+    uint32_t categoryId;
+};
 
-    std::cout << "DataStart (relative): " << dataStartRelative << "\n";
-    std::cout << "PCKCategoryChunk Size: " << pckCategoryChunkSize << "\n";
+std::string extractDir;
+bool dirDel;
+std::string* categoryBuffer;
+std::string categoryName;
+std::string outFile;
+std::streampos currentPos;
 
-    // Read SubHeader data
-    uint32_t checkVal, unkVal2, unkVal3;
+Header header{};
+PCKCategoryEntryTable pckCategoryEntryTable{};
+BNKEntryTable bnkEntryTable{};
+WEMEntryTable wemEntryTable{};
+WEMType2EntryTable wemType2EntryTable{};
 
-    ReadBytesUInt32(checkVal, pckFile);
 
-    if (checkVal == 4)
+int ParseHeader(std::ifstream& pckFile)
+{
+    pckFile.read(reinterpret_cast<char*>(&header.magic), 4);
+    if (strncmp(header.magic, "AKPK", 4) != 0)
     {
-        isBankPCK = false;
-    }
-    else
-    {
-        isBankPCK = true;
+        std::cout << "Error: PCK file is invalid!";
+        return -1;
     }
 
-    pckFile.seekg(16, std::ios::beg);
+    ReadBytesUInt32(header.dataStartRelative, pckFile);
+    ReadBytesUInt32(header.unkVal, pckFile);
+    ReadBytesUInt32(header.pckCategoryChunkSize, pckFile);
+    ReadBytesUInt32(header.bnkEntryTableSize, pckFile);
+    ReadBytesUInt32(header.wemEntryTableSize, pckFile);
+    ReadBytesUInt32(header.wemType2EntryTableSize, pckFile);
 
-    if (isBankPCK)
-    {
-        ReadBytesUInt32(bankEntryTableSize, pckFile);
-        ReadBytesUInt32(unkVal2, pckFile);
-        ReadBytesUInt32(unkVal3, pckFile);
+    std::cout << "DataStart (relative): " << header.dataStartRelative << "\n";
+    std::cout << "PCKCategoryChunk size: " << header.pckCategoryChunkSize << "\n";
+    std::cout << "BNK Entrytable size: " << header.bnkEntryTableSize << "\n";
+    std::cout << "WEM Entrytable size: " << header.wemEntryTableSize << "\n";
+    std::cout << "WEM-Type2 Entrytable size: " << header.wemType2EntryTableSize << "\n";
 
-        std::cout << "BankEntryTableSize: " << bankEntryTableSize << "\n";
-    }
-    else
-    {
-        ReadBytesUInt32(unkVal2, pckFile);
-        ReadBytesUInt32(trackEntryTableSize, pckFile);
-        ReadBytesUInt32(unkVal3, pckFile);
-
-        std::cout << "TrackEntryTableSize: " << trackEntryTableSize << "\n";
-    }
+    return 0;
 }
 
-void ParsePCKCategoryChunk(std::ifstream& pckFile)
+
+int ParsePCKCategoryChunk(std::ifstream& pckFile)
 {
+    uint32_t pckCategoryCount;
     ReadBytesUInt32(pckCategoryCount, pckFile);
 
     std::cout << "\n";
     std::cout << "PCKCategoryCount: " << pckCategoryCount << "\n";
 
-    //uint32_t currentStringOffset, currentID;
-    std::streampos currentChunkPos;
     uint32_t categoryChunkAmountRead = 4;
-    PCKCategoryEntry pckCategoryEntry{};
     categoryBuffer = new std::string[pckCategoryCount];
 
     for (uint32_t i = 0; i < pckCategoryCount; i++)
     {
-        ReadBytesUInt32(pckCategoryEntry.offset, pckFile);
-        pckCategoryEntry.offset += 28;
+        ReadBytesUInt32(pckCategoryEntryTable.offset, pckFile);
+        pckCategoryEntryTable.offset += 28;
 
-        ReadBytesUInt32(pckCategoryEntry.id, pckFile);
+        ReadBytesUInt32(pckCategoryEntryTable.id, pckFile);
         categoryChunkAmountRead += 8;
 
-        currentChunkPos = pckFile.tellg();
-        pckFile.seekg(pckCategoryEntry.offset);
+        currentPos = pckFile.tellg();
+        pckFile.seekg(pckCategoryEntryTable.offset);
 
         uint8_t categorySize = 0;
         uint8_t b = 0;
-        uint32_t pos = pckCategoryEntry.offset;
+        uint32_t pos = pckCategoryEntryTable.offset;
         uint16_t b2;
         std::string category;
 
@@ -133,108 +146,172 @@ void ParsePCKCategoryChunk(std::ifstream& pckFile)
             }
         }
 
-        std::cout << category << " " << pckCategoryEntry.id << "\n";
-        categoryBuffer[pckCategoryEntry.id] = category;
+        std::cout << category << " " << pckCategoryEntryTable.id << "\n";
+        categoryBuffer[pckCategoryEntryTable.id] = category;
 
         if (i != pckCategoryCount - 1)
         {
-            pckFile.seekg(currentChunkPos);
+            pckFile.seekg(currentPos);
         }
     }
 
-    currentChunkPos = pckFile.tellg();
-    uint32_t categoryChunkRemaining = pckCategoryChunkSize - categoryChunkAmountRead;
+    currentPos = pckFile.tellg();
+    uint32_t categoryChunkRemaining = header.pckCategoryChunkSize - categoryChunkAmountRead;
 
     if (categoryChunkRemaining != 0)
     {
-        currentChunkPos += categoryChunkRemaining;
-        pckFile.seekg(currentChunkPos);
-        currentChunkPos = pckFile.tellg();
-    }
-
-    if (!isBankPCK)
-    {
-        currentChunkPos += 4;
-        pckFile.seekg(currentChunkPos);
+        currentPos += categoryChunkRemaining;
+        pckFile.seekg(currentPos);
+        currentPos = pckFile.tellg();
     }
 
     std::cout << "\n";
+
+    return 0;
 }
 
-void UnpackFromPCK(std::ifstream& pckFile)
+
+void UnpackFileFromTable(std::ifstream& pckFile, std::string& outFile, uint32_t& offset, uint32_t size)
 {
-    uint32_t trackOrBankCount;
-    ReadBytesUInt32(trackOrBankCount, pckFile);
-    std::cout << "Track/Bank Count: " << trackOrBankCount << "\n\n";
-
-    std::streampos currentEntryPos;
-    std::string categoryName;
-    std::string outFile;
-
-    TrackOrBankEntry trackOrBankEntry{};
-    int delStatus;
-    dirDel = false;
-
-    for (uint32_t i = 0; i < trackOrBankCount; i++)
+    if (remove(outFile.c_str()) == 0)
     {
-        ReadBytesUInt32(trackOrBankEntry.id, pckFile);
-        ReadBytesUInt32(trackOrBankEntry.unkVal, pckFile);
-        ReadBytesUInt32(trackOrBankEntry.size, pckFile);
-        ReadBytesUInt32(trackOrBankEntry.offset, pckFile);
-        ReadBytesUInt32(trackOrBankEntry.categoryId, pckFile);
+        std::cout << "File exists! will be replaced!" << "\n";
+    }
 
-        currentEntryPos = pckFile.tellg();
+    std::ofstream trackFile(outFile, std::ofstream::binary);
+    pckFile.seekg(offset);
 
-        std::cout << "ID: " << trackOrBankEntry.id << "\n";
-        std::cout << "Size: " << trackOrBankEntry.size << "\n";
-        std::cout << "Offset: " << trackOrBankEntry.offset << "\n";
+    char* buffer = new char[size];
+    pckFile.read(buffer, size);
+    trackFile.write(buffer, size);
+    delete[] buffer;
+    trackFile.close();
 
-        categoryName = categoryBuffer[trackOrBankEntry.categoryId];
+    std::ifstream checkStream(outFile, std::ifstream::binary);
+    if (checkStream.good())
+    {
+        checkStream.close();
+        std::cout << "Unpacked file: " << outFile << "\n\n";
+    }
+    else
+    {
+        checkStream.close();
+        std::cout << "Failed to unpack file: " << outFile << "\n\n";
+    }
+}
+
+
+int UnpackBNK(std::ifstream& pckFile)
+{
+    uint32_t bnkCount;
+    ReadBytesUInt32(bnkCount, pckFile);
+    std::cout << "Bank Count: " << bnkCount << "\n\n";
+
+    for (uint32_t i = 0; i < bnkCount; i++)
+    {
+        ReadBytesUInt32(bnkEntryTable.id, pckFile);
+        ReadBytesUInt32(bnkEntryTable.unkVal, pckFile);
+        ReadBytesUInt32(bnkEntryTable.size, pckFile);
+        ReadBytesUInt32(bnkEntryTable.offset, pckFile);
+        ReadBytesUInt32(bnkEntryTable.categoryId, pckFile);
+
+        currentPos = pckFile.tellg();
+
+        std::cout << "ID: " << bnkEntryTable.id << "\n";
+        std::cout << "Size: " << bnkEntryTable.size << "\n";
+        std::cout << "Offset: " << bnkEntryTable.offset << "\n";
+
+        categoryName = categoryBuffer[bnkEntryTable.categoryId];
         std::cout << "Category: " << categoryName << "\n";
 
         outFile = extractDir + "\\" + categoryName;
         CreateDirCustom(outFile.c_str(), dirDel);
 
-        if (isBankPCK)
-        {
-            outFile += "\\" + std::to_string(trackOrBankEntry.id) + ".bnk";
-        }
-        else
-        {
-            outFile += "\\" + std::to_string(trackOrBankEntry.id) + ".wem";
-        }
+        outFile += "\\" + std::to_string(bnkEntryTable.id) + ".bnk";
 
-        delStatus = remove(outFile.c_str());
+        UnpackFileFromTable(pckFile, outFile, bnkEntryTable.offset, bnkEntryTable.size);
 
-        if (delStatus == 0)
-        {
-            std::cout << "File exists! will be replaced!" << "\n";
-        }
-
-        std::ofstream trackFile(outFile, std::ofstream::binary);
-        pckFile.seekg(trackOrBankEntry.offset);
-
-        char* buffer = new char[trackOrBankEntry.size];
-        pckFile.read(buffer, trackOrBankEntry.size);
-        trackFile.write(buffer, trackOrBankEntry.size);
-        delete[] buffer;
-        trackFile.close();
-
-        std::ifstream checkStream(outFile, std::ifstream::binary);
-        if (checkStream.good())
-        {
-            checkStream.close();
-            std::cout << "Unpacked file: " << outFile << "\n\n";
-        }
-        else
-        {
-            checkStream.close();
-            std::cout << "Failed to unpack file: " << outFile << "\n\n";
-        }
-
-        pckFile.seekg(currentEntryPos);
+        pckFile.seekg(currentPos);
     }
+
+    return 0;
 }
+
+
+int UnpackWEM(std::ifstream& pckFile)
+{
+    uint32_t trackCount;
+    ReadBytesUInt32(trackCount, pckFile);
+    std::cout << "Track Count: " << trackCount << "\n\n";
+
+    for (uint32_t i = 0; i < trackCount; i++)
+    {
+        ReadBytesUInt32(wemEntryTable.id, pckFile);
+        ReadBytesUInt32(wemEntryTable.unkVal, pckFile);
+        ReadBytesUInt32(wemEntryTable.size, pckFile);
+        ReadBytesUInt32(wemEntryTable.offset, pckFile);
+        ReadBytesUInt32(wemEntryTable.categoryId, pckFile);
+
+        currentPos = pckFile.tellg();
+
+        std::cout << "ID: " << wemEntryTable.id << "\n";
+        std::cout << "Size: " << wemEntryTable.size << "\n";
+        std::cout << "Offset: " << wemEntryTable.offset << "\n";
+
+        categoryName = categoryBuffer[wemEntryTable.categoryId];
+        std::cout << "Category: " << categoryName << "\n";
+
+        outFile = extractDir + "\\" + categoryName;
+        CreateDirCustom(outFile.c_str(), dirDel);
+
+        outFile += "\\" + std::to_string(wemEntryTable.id) + ".wem";
+
+        UnpackFileFromTable(pckFile, outFile, wemEntryTable.offset, wemEntryTable.size);
+
+        pckFile.seekg(currentPos);
+    }
+
+    return 0;
+}
+
+
+int UnpackWEMType2(std::ifstream& pckFile)
+{
+    uint32_t trackCount;
+    ReadBytesUInt32(trackCount, pckFile);
+    std::cout << "Track Count: " << trackCount << "\n\n";
+
+    for (uint32_t i = 0; i < trackCount; i++)
+    {
+        ReadBytesUInt32(wemType2EntryTable.id, pckFile);
+        ReadBytesUInt32(wemType2EntryTable.unkVal, pckFile);
+        ReadBytesUInt32(wemType2EntryTable.unkVal2, pckFile);
+        ReadBytesUInt32(wemType2EntryTable.size, pckFile);
+        ReadBytesUInt32(wemType2EntryTable.offset, pckFile);
+        ReadBytesUInt32(wemType2EntryTable.categoryId, pckFile);
+
+        currentPos = pckFile.tellg();
+
+        std::cout << "ID: " << wemType2EntryTable.id << "\n";
+        std::cout << "Size: " << wemType2EntryTable.size << "\n";
+        std::cout << "Offset: " << wemType2EntryTable.offset << "\n";
+
+        categoryName = categoryBuffer[wemType2EntryTable.categoryId];
+        std::cout << "Category: " << categoryName << "\n";
+
+        outFile = extractDir + "\\" + categoryName;
+        CreateDirCustom(outFile.c_str(), dirDel);
+
+        outFile += "\\" + std::to_string(wemType2EntryTable.id) + ".wem";
+
+        UnpackFileFromTable(pckFile, outFile, wemType2EntryTable.offset, wemType2EntryTable.size);
+
+        pckFile.seekg(currentPos);
+    }
+
+    return 0;
+}
+
 
 int InitiateUnpack(std::ifstream& pckFile, std::string& file)
 {
@@ -256,22 +333,63 @@ int InitiateUnpack(std::ifstream& pckFile, std::string& file)
     CreateDirCustom(extractDir.c_str(), dirDel);
 
     // Read Header data
-    char magic[4]{};
-
-    pckFile.read(reinterpret_cast<char*>(&magic), 4);
-    if (strncmp(magic, "AKPK", 4) != 0)
+    if (ParseHeader(pckFile) == -1)
     {
-        std::cout << "Error: PCK file is invalid!";
+        return -1;
+    }
+    
+    dirDel = false;
+
+    // Read PCKCategoryChunk data
+    if (ParsePCKCategoryChunk(pckFile) == -1)
+    {
         return -1;
     }
 
-    ParseHeader(pckFile);
-    
-    // Read PCKCategoryChunk data
-    ParsePCKCategoryChunk(pckFile);
-    
-    // Unpack Track or Bank files
-    UnpackFromPCK(pckFile);
+    // Read BNKEntryTable data
+    if (header.bnkEntryTableSize != 4)
+    {
+        if (UnpackBNK(pckFile) == -1)
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        currentPos = pckFile.tellg();
+        currentPos += 4;
+        pckFile.seekg(currentPos);
+    }
+
+    // Read WEMEntryTable data
+    if (header.wemEntryTableSize != 4)
+    {
+        if (UnpackWEM(pckFile) == -1)
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        currentPos = pckFile.tellg();
+        currentPos += 4;
+        pckFile.seekg(currentPos);
+    }
+
+    // Read WEMType2EntryTable data
+    if (header.wemType2EntryTableSize != 4)
+    {
+        if (UnpackWEMType2(pckFile) == -1)
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        currentPos = pckFile.tellg();
+        currentPos += 4;
+        pckFile.seekg(currentPos);
+    }
 
     std::cout << "\nFinished unpacking pck file!\n";
 
