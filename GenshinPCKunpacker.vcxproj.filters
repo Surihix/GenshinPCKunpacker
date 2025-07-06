@@ -24,7 +24,7 @@
     <ClCompile Include="src\PCKunpack.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\SharedFunctions.cpp">
+    <ClCompile Include="src\IOFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,7 +35,7 @@
     <ClInclude Include="src\PCKunpack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\SharedFunctions.h">
+    <ClInclude Include="src\IOFunctions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

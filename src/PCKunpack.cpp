@@ -1,8 +1,9 @@
 #include <fstream>
 #include <iostream>
 #include "ReadByteFunctions.h"
-#include "SharedFunctions.h"
+#include "IOFunctions.h"
 #include <string>
+#include <cstdio>
 
 std::string extractDir;
 uint32_t pckCategoryChunkSize = 0;
@@ -15,21 +16,12 @@ typedef struct PCKCategoryEntry
     uint32_t id;
 };
 
-typedef struct BankEntry
+typedef struct TrackOrBankEntry
 {
-    uint32_t bankId;
+    uint32_t id;
     uint32_t unkVal;
-    uint32_t bankSize;
-    uint32_t bankOffset;
-    uint32_t reserved;
-};
-
-typedef struct TrackEntry
-{
-    uint32_t trackId;
-    uint32_t unkVal;
-    uint32_t trackSize;
-    uint32_t trackOffset;
+    uint32_t size;
+    uint32_t offset;
     uint32_t reserved;
 };
 
@@ -167,65 +159,68 @@ void ParsePCKCategoryChunk(std::ifstream& pckFile)
 
 void UnpackFromPCK(std::ifstream& pckFile)
 {
-    uint32_t trackCount, bankCount;
+    uint32_t trackOrBankCount;
+    ReadBytesUInt32(trackOrBankCount, pckFile);
+    std::cout << "Track/Bank Count: " << trackOrBankCount << "\n\n";
+
     std::streampos currentEntryPos;
     std::string outFile;
 
-    if (isBankPCK)
+    TrackOrBankEntry trackOrBankEntry{};
+    int delStatus;
+
+    for (uint32_t i = 0; i < trackOrBankCount; i++)
     {
-        ReadBytesUInt32(bankCount, pckFile);
-        std::cout << "BankCount: " << bankCount << "\n\n";
+        ReadBytesUInt32(trackOrBankEntry.id, pckFile);
+        ReadBytesUInt32(trackOrBankEntry.unkVal, pckFile);
+        ReadBytesUInt32(trackOrBankEntry.size, pckFile);
+        ReadBytesUInt32(trackOrBankEntry.offset, pckFile);
+        ReadBytesUInt32(trackOrBankEntry.reserved, pckFile);
 
-        BankEntry bankEntry{};
+        currentEntryPos = pckFile.tellg();
 
-        for (uint32_t i = 0; i < bankCount; i++)
+        std::cout << "ID: " << trackOrBankEntry.id << "\n";
+        std::cout << "Size: " << trackOrBankEntry.size << "\n";
+        std::cout << "Offset: " << trackOrBankEntry.offset << "\n";
+
+        if (isBankPCK)
         {
-            ReadBytesUInt32(bankEntry.bankId, pckFile);
-            ReadBytesUInt32(bankEntry.unkVal, pckFile);
-            ReadBytesUInt32(bankEntry.bankSize, pckFile);
-            ReadBytesUInt32(bankEntry.bankOffset, pckFile);
-            ReadBytesUInt32(bankEntry.reserved, pckFile);
-
-            currentEntryPos = pckFile.tellg();
-
-            std::cout << "BankId: " << bankEntry.bankId << "\n";
-            std::cout << "Size: " << bankEntry.bankSize << "\n";
-            std::cout << "Offset: " << bankEntry.bankOffset << "\n";
-
-            pckFile.seekg(bankEntry.bankOffset);
-            outFile = extractDir + "\\" + std::to_string(bankEntry.bankId) + ".bnk";
-            std::cout << "Bank: " << outFile << "\n\n";
-
-            pckFile.seekg(currentEntryPos);
+            outFile = extractDir + "\\" + std::to_string(trackOrBankEntry.id) + ".bnk";
         }
-    }
-    else
-    {
-        ReadBytesUInt32(trackCount, pckFile);
-        std::cout << "TrackCount: " << trackCount << "\n\n";
-
-        TrackEntry trackEntry{};
-
-        for (uint32_t i = 0; i < trackCount; i++)
+        else
         {
-            ReadBytesUInt32(trackEntry.trackId, pckFile);
-            ReadBytesUInt32(trackEntry.unkVal, pckFile);
-            ReadBytesUInt32(trackEntry.trackSize, pckFile);
-            ReadBytesUInt32(trackEntry.trackOffset, pckFile);
-            ReadBytesUInt32(trackEntry.reserved, pckFile);
-
-            currentEntryPos = pckFile.tellg();
-
-            std::cout << "TrackId: " << trackEntry.trackId << "\n";
-            std::cout << "Size: " << trackEntry.trackSize << "\n";
-            std::cout << "Offset: " << trackEntry.trackOffset << "\n";
-
-            pckFile.seekg(trackEntry.trackOffset);
-            outFile = extractDir + "\\" + std::to_string(trackEntry.trackId) + ".wem";
-            std::cout << "Track: " << outFile << "\n\n";
-
-            pckFile.seekg(currentEntryPos);
+            outFile = extractDir + "\\" + std::to_string(trackOrBankEntry.id) + ".wem";
         }
+
+        delStatus = remove(outFile.c_str());
+
+        if (delStatus == 0)
+        {
+            std::cout << "File exists! will be replaced!" << "\n";
+        }
+
+        std::ofstream trackFile(outFile, std::ofstream::binary);
+        pckFile.seekg(trackOrBankEntry.offset);
+
+        char* buffer = new char[trackOrBankEntry.size];
+        pckFile.read(buffer, trackOrBankEntry.size);
+        trackFile.write(buffer, trackOrBankEntry.size);
+        delete[] buffer;
+        trackFile.close();
+
+        std::ifstream checkStream(outFile, std::ifstream::binary);
+        if (checkStream.good())
+        {
+            checkStream.close();
+            std::cout << "Unpacked file: " << outFile << "\n\n";
+        }
+        else
+        {
+            checkStream.close();
+            std::cout << "Failed to unpack file: " << outFile << "\n\n";
+        }
+
+        pckFile.seekg(currentEntryPos);
     }
 }
 
@@ -257,6 +252,8 @@ int InitiateUnpack(std::ifstream& pckFile, std::string& file)
     
     // Unpack Track or Bank files
     UnpackFromPCK(pckFile);
+
+    std::cout << "\nFinished unpacking pck file!\n";
 
     return 0;
 }

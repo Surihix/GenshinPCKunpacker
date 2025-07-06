@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
         }
 
         std::string file(argv[1]);
-        std::ifstream pckFile(file, std::ios::binary);
+        std::ifstream pckFile(file, std::ifstream::binary);
 
         // Check if file was opened properly
         if (pckFile.fail())

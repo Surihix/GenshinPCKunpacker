@@ -126,12 +126,12 @@
     <ClCompile Include="src\ReadByteFunctions.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\PCKunpack.cpp" />
-    <ClCompile Include="src\SharedFunctions.cpp" />
+    <ClCompile Include="src\IOFunctions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\PCKunpack.h" />
     <ClInclude Include="src\ReadByteFunctions.h" />
-    <ClInclude Include="src\SharedFunctions.h" />
+    <ClInclude Include="src\IOFunctions.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

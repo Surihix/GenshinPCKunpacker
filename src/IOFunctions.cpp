@@ -1,7 +1,6 @@
 #include <direct.h>
 #include <iostream>
 #include <Windows.h>
-#include <vector>
 
 bool DeleteDir(const wchar_t* directory)
 {
