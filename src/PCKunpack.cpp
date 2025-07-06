@@ -240,10 +240,17 @@ int InitiateUnpack(std::ifstream& pckFile, std::string& file)
 {
     // Prep before extraction
     std::cout << "PCKFile: " << file <<"\n\n";
-
-    std::string dir = file.substr(0, file.find_last_of("\\"));
-    std::string fileName = file.substr(file.find_last_of("\\") + 1);
-    extractDir = dir + "\\_" + fileName;
+    if (file.find("\\") != std::string::npos)
+    {
+        std::string dir = file.substr(0, file.find_last_of("\\"));
+        std::string fileName = file.substr(file.find_last_of("\\") + 1);
+        extractDir = dir + "\\_" + fileName;
+    }
+    else
+    {
+        extractDir = "_";
+        extractDir += file;
+    }
 
     dirDel = true;
     CreateDirCustom(extractDir.c_str(), dirDel);

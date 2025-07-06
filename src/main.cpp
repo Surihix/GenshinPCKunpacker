@@ -27,8 +27,6 @@ int main(int argc, char* argv[])
 
         // Begin unpack
         InitiateUnpack(pckFile, file);
-
-        std::cin.get();
     }
     catch (std::exception e)
     {

@@ -34,11 +34,16 @@ bool DeleteDir(const wchar_t* directory)
 
 				if (delStatus != 0)
 				{
-					bool isEmptied = DeleteDir(sPath); // Recursion, I love it!
+					bool isEmptied = DeleteDir(sPath); // Recursion. run this function inside this directory.
 					
 					if (isEmptied)
 					{
-						_wrmdir(sPath);
+						delStatus = _wrmdir(sPath);
+
+						if (delStatus != 0)
+						{
+							throw std::logic_error("Unable to delete directory. exception in loop!");
+						}
 					}
 				}
 			}
@@ -92,7 +97,7 @@ void CreateDirCustom(const char* directory, bool &shouldDeleteOld)
 
 			if (status != 0)
 			{
-				throw std::logic_error("Unable to delete directory!");
+				throw std::logic_error("Unable to create directory!");
 			}
 		}
 	}
