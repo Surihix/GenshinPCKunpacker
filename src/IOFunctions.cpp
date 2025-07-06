@@ -30,7 +30,17 @@ bool DeleteDir(const wchar_t* directory)
 			// Is the entity a File or Folder? 
 			if (fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 			{
-				DeleteDir(sPath); // Recursion, I love it!
+				int delStatus = _wrmdir(sPath);
+
+				if (delStatus != 0)
+				{
+					bool isEmptied = DeleteDir(sPath); // Recursion, I love it!
+					
+					if (isEmptied)
+					{
+						_wrmdir(sPath);
+					}
+				}
 			}
 			else
 			{
@@ -52,36 +62,43 @@ const wchar_t* CharToWChar(char* chara)
 	return wchara;
 }
 
-void CreateDir(const char* directory)
+void CreateDirCustom(const char* directory, bool &shouldDeleteOld)
 {
-	// Try creating a directory
-	int status = _mkdir(directory);
-
-	if (status == -1)
+	if (shouldDeleteOld)
 	{
-		// Delete directory as it exists
-		status = _rmdir(directory);
-
-		// If failed, assume its not empty
-		if (status == -1)
+		// Try creating a directory
+		int status = _mkdir(directory);
+		if (status != 0)
 		{
-			DeleteDir(CharToWChar((char*)directory));
-
-			// Try deleting the directory again
+			// Delete directory as it exists
 			status = _rmdir(directory);
 
-			if (status == -1)
+			// If failed, assume its not empty
+			if (status != 0)
+			{
+				DeleteDir(CharToWChar((char*)directory));
+
+				// Try deleting the directory again
+				status = _rmdir(directory);
+
+				if (status != 0)
+				{
+					throw std::logic_error("Unable to delete directory!");
+				}
+			}
+
+			// Try creating the directory again
+			int status = _mkdir(directory);
+
+			if (status != 0)
 			{
 				throw std::logic_error("Unable to delete directory!");
 			}
 		}
-
-		// Try creating the directory again
-		status = _mkdir(directory);
-
-		if (status == -1)
-		{
-			throw std::logic_error("Unable to create directory!");
-		}
+	}
+	else
+	{
+		// Try creating a directory
+		int status = _mkdir(directory);
 	}
 }

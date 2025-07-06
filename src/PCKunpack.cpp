@@ -6,7 +6,9 @@
 #include <cstdio>
 
 std::string extractDir;
+bool dirDel;
 uint32_t pckCategoryChunkSize = 0;
+std::string* categoryBuffer;
 bool isBankPCK;
 uint32_t pckCategoryCount;
 
@@ -22,7 +24,7 @@ typedef struct TrackOrBankEntry
     uint32_t unkVal;
     uint32_t size;
     uint32_t offset;
-    uint32_t reserved;
+    uint32_t categoryId;
 };
 
 void ParseHeader(std::ifstream& pckFile)
@@ -84,6 +86,7 @@ void ParsePCKCategoryChunk(std::ifstream& pckFile)
     std::streampos currentChunkPos;
     uint32_t categoryChunkAmountRead = 4;
     PCKCategoryEntry pckCategoryEntry{};
+    categoryBuffer = new std::string[pckCategoryCount];
 
     for (uint32_t i = 0; i < pckCategoryCount; i++)
     {
@@ -131,6 +134,7 @@ void ParsePCKCategoryChunk(std::ifstream& pckFile)
         }
 
         std::cout << category << " " << pckCategoryEntry.id << "\n";
+        categoryBuffer[pckCategoryEntry.id] = category;
 
         if (i != pckCategoryCount - 1)
         {
@@ -164,10 +168,12 @@ void UnpackFromPCK(std::ifstream& pckFile)
     std::cout << "Track/Bank Count: " << trackOrBankCount << "\n\n";
 
     std::streampos currentEntryPos;
+    std::string categoryName;
     std::string outFile;
 
     TrackOrBankEntry trackOrBankEntry{};
     int delStatus;
+    dirDel = false;
 
     for (uint32_t i = 0; i < trackOrBankCount; i++)
     {
@@ -175,7 +181,7 @@ void UnpackFromPCK(std::ifstream& pckFile)
         ReadBytesUInt32(trackOrBankEntry.unkVal, pckFile);
         ReadBytesUInt32(trackOrBankEntry.size, pckFile);
         ReadBytesUInt32(trackOrBankEntry.offset, pckFile);
-        ReadBytesUInt32(trackOrBankEntry.reserved, pckFile);
+        ReadBytesUInt32(trackOrBankEntry.categoryId, pckFile);
 
         currentEntryPos = pckFile.tellg();
 
@@ -183,13 +189,19 @@ void UnpackFromPCK(std::ifstream& pckFile)
         std::cout << "Size: " << trackOrBankEntry.size << "\n";
         std::cout << "Offset: " << trackOrBankEntry.offset << "\n";
 
+        categoryName = categoryBuffer[trackOrBankEntry.categoryId];
+        std::cout << "Category: " << categoryName << "\n";
+
+        outFile = extractDir + "\\" + categoryName;
+        CreateDirCustom(outFile.c_str(), dirDel);
+
         if (isBankPCK)
         {
-            outFile = extractDir + "\\" + std::to_string(trackOrBankEntry.id) + ".bnk";
+            outFile += "\\" + std::to_string(trackOrBankEntry.id) + ".bnk";
         }
         else
         {
-            outFile = extractDir + "\\" + std::to_string(trackOrBankEntry.id) + ".wem";
+            outFile += "\\" + std::to_string(trackOrBankEntry.id) + ".wem";
         }
 
         delStatus = remove(outFile.c_str());
@@ -233,7 +245,8 @@ int InitiateUnpack(std::ifstream& pckFile, std::string& file)
     std::string fileName = file.substr(file.find_last_of("\\") + 1);
     extractDir = dir + "\\_" + fileName;
 
-    CreateDir(extractDir.c_str());
+    dirDel = true;
+    CreateDirCustom(extractDir.c_str(), dirDel);
 
     // Read Header data
     char magic[4]{};
