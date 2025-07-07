@@ -133,6 +133,12 @@
     <ClInclude Include="src\ReadByteFunctions.h" />
     <ClInclude Include="src\IOFunctions.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md">
+      <SubType>
+      </SubType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
