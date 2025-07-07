@@ -4,3 +4,6 @@
  <br>
 
  Usage is pretty simple. just drag n drop a .pck file on to the program and it should quickly start unpacking the files into a new folder that will be created next to the .pck file.
+ <br>
+
+ The extracted files can be converted/played with [vgmstream](https://github.com/vgmstream/vgmstream).
