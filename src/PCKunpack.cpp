@@ -4,6 +4,7 @@
 #include "IOFunctions.h"
 #include <string>
 #include <cstdio>
+#include <map>
 
 typedef struct Header
 {
@@ -50,8 +51,7 @@ typedef struct WEMType2EntryTable
 };
 
 std::string extractDir;
-bool dirDel;
-std::string* categoryBuffer;
+std::map<uint32_t, std::string> categoryDict;
 std::string categoryName;
 std::string outFile;
 std::streampos currentPos;
@@ -98,7 +98,6 @@ int ParsePCKCategoryChunk(std::ifstream& pckFile)
     std::cout << "PCKCategoryCount: " << pckCategoryCount << "\n";
 
     uint32_t categoryChunkAmountRead = 4;
-    categoryBuffer = new std::string[pckCategoryCount];
 
     for (uint32_t i = 0; i < pckCategoryCount; i++)
     {
@@ -146,7 +145,7 @@ int ParsePCKCategoryChunk(std::ifstream& pckFile)
         }
 
         std::cout << category << " " << pckCategoryEntryTable.id << "\n";
-        categoryBuffer[pckCategoryEntryTable.id] = category;
+        categoryDict.insert({ pckCategoryEntryTable.id, category});
 
         if (i != pckCategoryCount - 1)
         {
@@ -170,7 +169,7 @@ int ParsePCKCategoryChunk(std::ifstream& pckFile)
 }
 
 
-void UnpackFileFromTable(std::ifstream& pckFile, std::string& outFile, uint32_t& offset, uint32_t size)
+void UnpackFileFromTable(std::ifstream& pckFile, std::string& outFile, uint32_t& offset, uint32_t& size)
 {
     if (remove(outFile.c_str()) == 0)
     {
@@ -220,11 +219,11 @@ int UnpackBNK(std::ifstream& pckFile)
         std::cout << "Size: " << bnkEntryTable.size << "\n";
         std::cout << "Offset: " << bnkEntryTable.offset << "\n";
 
-        categoryName = categoryBuffer[bnkEntryTable.categoryId];
+        categoryName = categoryDict[bnkEntryTable.categoryId];
         std::cout << "Category: " << categoryName << "\n";
 
         outFile = extractDir + "\\" + categoryName;
-        CreateDirCustom(outFile.c_str(), dirDel);
+        CreateDirectoryNormal(outFile);
 
         outFile += "\\" + std::to_string(bnkEntryTable.id) + ".bnk";
 
@@ -257,11 +256,11 @@ int UnpackWEM(std::ifstream& pckFile)
         std::cout << "Size: " << wemEntryTable.size << "\n";
         std::cout << "Offset: " << wemEntryTable.offset << "\n";
 
-        categoryName = categoryBuffer[wemEntryTable.categoryId];
+        categoryName = categoryDict[wemEntryTable.categoryId];
         std::cout << "Category: " << categoryName << "\n";
 
         outFile = extractDir + "\\" + categoryName;
-        CreateDirCustom(outFile.c_str(), dirDel);
+        CreateDirectoryNormal(outFile);
 
         outFile += "\\" + std::to_string(wemEntryTable.id) + ".wem";
 
@@ -294,11 +293,11 @@ int UnpackWEMType2(std::ifstream& pckFile)
         std::cout << "Size: " << wemType2EntryTable.size << "\n";
         std::cout << "Offset: " << wemType2EntryTable.offset << "\n";
 
-        categoryName = categoryBuffer[wemType2EntryTable.categoryId];
+        categoryName = categoryDict[wemType2EntryTable.categoryId];
         std::cout << "Category: " << categoryName << "\n";
 
         outFile = extractDir + "\\" + categoryName;
-        CreateDirCustom(outFile.c_str(), dirDel);
+        CreateDirectoryNormal(outFile);
 
         outFile += "\\" + std::to_string(wemType2EntryTable.id) + ".wem";
 
@@ -327,8 +326,7 @@ int InitiateUnpack(std::ifstream& pckFile, std::string& file)
         extractDir += file;
     }
 
-    dirDel = true;
-    CreateDirCustom(extractDir.c_str(), dirDel);
+    CreateDirectoryClean(extractDir);
 
     // Read Header data
     if (ParseHeader(pckFile) == -1)
@@ -336,8 +334,6 @@ int InitiateUnpack(std::ifstream& pckFile, std::string& file)
         return -1;
     }
     
-    dirDel = false;
-
     // Read PCKCategoryChunk data
     if (ParsePCKCategoryChunk(pckFile) == -1)
     {

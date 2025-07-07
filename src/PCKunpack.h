@@ -7,7 +7,7 @@ int ParseHeader(std::ifstream& stream);
 
 int ParsePCKCategoryChunk(std::ifstream& stream);
 
-void UnpackFileFromTable(std::ifstream& pckFile, std::string& outFile, uint32_t& offset, uint32_t size);
+void UnpackFileFromTable(std::ifstream& pckFile, std::string& outFile, uint32_t& offset, uint32_t& size);
 
 int UnpackBNK(std::ifstream& stream);
 

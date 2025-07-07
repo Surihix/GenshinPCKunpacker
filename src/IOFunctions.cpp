@@ -9,7 +9,7 @@ bool DeleteDir(const wchar_t* directory)
 
 	wchar_t sPath[2048];
 
-	//Specify a file mask. *.* = We want everything!
+	// Specify a file mask. *.* = We want everything!
 	wsprintf(sPath, L"%s\\*.*", directory);
 
 	if ((hFind = FindFirstFileW(sPath, &fdFile)) == INVALID_HANDLE_VALUE)
@@ -57,53 +57,49 @@ bool DeleteDir(const wchar_t* directory)
 	return true;
 }
 
-const wchar_t* CharToWChar(char* chara)
+
+std::wstring CharToWString(const char* chara)
 {
-	wchar_t* wchara = new wchar_t[MAX_PATH];
+	wchar_t wchara[MAX_PATH];
 
 	size_t outSize;
 	mbstowcs_s(&outSize, wchara, MAX_PATH, chara, (size_t)strlen(chara));
 
-	return wchara;
+	return std::wstring(wchara);
 }
 
-void CreateDirCustom(const char* directory, bool &shouldDeleteOld)
+
+void CreateDirectoryClean(const std::string& directory)
 {
-	if (shouldDeleteOld)
+	int status;
+	const char* dir = directory.c_str();
+
+	// Try creating the directory
+	status = _mkdir(dir);
+
+	if (status != 0)
 	{
-		// Try creating a directory
-		int status = _mkdir(directory);
+		// Assume directory exists, try deleting
+		status = _rmdir(dir);
+
 		if (status != 0)
 		{
-			// Delete directory as it exists
-			status = _rmdir(directory);
-
 			// If failed, assume its not empty
-			if (status != 0)
-			{
-				DeleteDir(CharToWChar((char*)directory));
+			DeleteDir(CharToWString(dir).c_str());
 
-				// Try deleting the directory again
-				status = _rmdir(directory);
-
-				if (status != 0)
-				{
-					throw std::logic_error("Unable to delete directory!");
-				}
-			}
-
-			// Try creating the directory again
-			int status = _mkdir(directory);
+			// Try deleting the directory again
+			status = _rmdir(dir);
 
 			if (status != 0)
 			{
-				throw std::logic_error("Unable to create directory!");
+				throw std::logic_error("Unable to delete directory!");
 			}
 		}
 	}
-	else
-	{
-		// Try creating a directory
-		int status = _mkdir(directory);
-	}
+}
+
+
+void CreateDirectoryNormal(const std::string& directory)
+{
+	int status = _mkdir(directory.c_str());
 }

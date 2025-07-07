@@ -1,7 +1,9 @@
 #pragma once
 
-bool DeleteDir(const wchar_t* sDir);
+bool DeleteDir(const wchar_t* directory);
 
-const wchar_t* CharToWChar(char* chara);
+std::wstring CharToWString(char* chara);
 
-void CreateDirCustom(const char* directory, bool &shouldDeleteOld);
+void CreateDirectoryClean(const std::string& directory);
+
+void CreateDirectoryNormal(const std::string& directory);
