@@ -42,9 +42,8 @@ typedef struct WEMEntryTable
 
 typedef struct WEMType2EntryTable
 {
-    uint32_t id;
+    uint64_t id;
     uint32_t unkVal;
-    uint32_t unkVal2;
     uint32_t size;
     uint32_t offset;
     uint32_t categoryId;
@@ -283,9 +282,8 @@ int UnpackWEMType2(std::ifstream& pckFile)
 
     for (uint32_t i = 0; i < trackCount; i++)
     {
-        ReadBytesUInt32(wemType2EntryTable.id, pckFile);
+        ReadBytesUInt64(wemType2EntryTable.id, pckFile);
         ReadBytesUInt32(wemType2EntryTable.unkVal, pckFile);
-        ReadBytesUInt32(wemType2EntryTable.unkVal2, pckFile);
         ReadBytesUInt32(wemType2EntryTable.size, pckFile);
         ReadBytesUInt32(wemType2EntryTable.offset, pckFile);
         ReadBytesUInt32(wemType2EntryTable.categoryId, pckFile);

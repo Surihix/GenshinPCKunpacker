@@ -16,3 +16,11 @@ void ReadBytesUInt16(uint16_t& val, std::ifstream& stream)
 		throw std::logic_error("ReadUInt16 failure!");
 	}
 }
+
+void ReadBytesUInt64(uint64_t& val, std::ifstream& stream)
+{
+	if (!stream.read(reinterpret_cast<char*>(&val), 8))
+	{
+		throw std::logic_error("ReadUInt64 failure!");
+	}
+}
