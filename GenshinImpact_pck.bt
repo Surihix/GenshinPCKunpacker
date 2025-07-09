@@ -1,0 +1,129 @@
+//----------------------------------------------------
+//--- 010 Editor v12.0.1 Binary Template
+//
+//      File: GenshinImpact_pck.bt
+//   Authors: Surihix
+//   Version: 1.1
+//   Purpose: Parse Genshin's PCK files.
+//  Category: Wwise PCK archive
+// File Mask: *.pck
+//  ID Bytes: 41 4B 50 4B
+//   History: 
+//   1.0   2025-07-07 Surihix: Initial version
+//   1.1   2025-07-09 Surihix: Set Unicode strings
+//----------------------------------------------------
+
+LittleEndian();
+
+typedef struct HEADER
+{
+    char magic[4]<bgcolor=cDkGreen>;
+    Assert(magic == "AKPK");
+
+    uint32 dataStart<bgcolor=cDkGreen, comment="relative, from the next offset onwards">;
+    uint32 unkVal<bgcolor=cRed>;
+    uint32 categoryChunkSize<bgcolor=cDkGreen>;
+    uint32 bnkEntryTableSize<bgcolor=cDkGreen, comment="4 = empty">;
+    uint32 wemEntryTableSize<bgcolor=cDkGreen, comment="4 = empty">;
+    uint32 wemType2EntryTableSize<bgcolor=cDkGreen, comment="4 = empty">;
+}Header;
+
+
+typedef struct CATEGORYENTRYTABLE
+{
+    uint32 offset<bgcolor=0x6213a2, comment="relative from 'Category Chunk' start">;
+    uint32 id<bgcolor=0x6213a2>;
+}CategoryEntryTable;
+
+
+typedef struct PCKCATEGORY
+{
+    wstring stringData<bgcolor=0x6213a2>;
+}Category<read=this.stringData>;
+
+
+typedef struct CATEGORYCHUNK
+{
+    local int64 categoryChunkPos = FTell();
+    uint32 categoryCount<bgcolor=0x6213a2>;
+    CategoryEntryTable categoryEntryTable[categoryCount]<name="Category Entry Table">;
+
+    local int i;
+
+    for (i = 0; i < categoryCount; i++)
+    {
+        FSeek(categoryChunkPos + categoryEntryTable[i].offset);
+        Category category<name="Category">;
+    }
+}CategoryChunk;
+
+
+typedef struct ENTRYTYPE1OFFSETS
+{
+    uint32 fileId<bgcolor=0x41446c>;
+    uint32 unkVal<bgcolor=cRed>;
+    uint32 size<bgcolor=0x41446c>;
+    uint32 offset<bgcolor=0x41446c>;
+    uint32 categoryID<bgcolor=0x41446c>;
+}EntryType1Offsets;
+
+
+typedef struct ENTRYTYPE1TABLE
+{
+    uint32 entryCount<bgcolor=0x41446c>;
+    EntryType1Offsets entryType1Offsets[entryCount]<name="EntryType1 Offsets">;
+}EntryType1Table;
+
+
+typedef struct ENTRYTYPE2OFFSETS
+{
+    uint64 fileId<bgcolor=0x41446c>;
+    uint32 unkVal<bgcolor=cRed>;
+    uint32 size<bgcolor=0x41446c>;
+    uint32 offset<bgcolor=0x41446c>;
+    uint32 categoryID<bgcolor=0x41446c>;
+}EntryType2Offsets;
+
+
+typedef struct ENTRYTYPE2TABLE
+{
+    uint32 entryCount<bgcolor=0x41446c>;
+    EntryType2Offsets entryType2Offsets[entryCount]<name="EntryType2 Offsets">;
+}EntryType2Table;
+
+
+struct FILE
+{
+    Header header<name="Header", open=true>;
+    CategoryChunk categoryChunk<name="Category Chunk">;
+
+    // BNK Entry Table
+    if (header.bnkEntryTableSize == 4)
+    {
+       ubyte emptyBNKTable[header.bnkEntryTableSize]<bgcolor=cBlack>;
+    }
+    else
+    {
+       EntryType1Table entryTable1<name="BNK Entry Table", comment="BNK file entries">;
+    }
+
+    // WEM Entry Table
+    if (header.wemEntryTableSize == 4)
+    {
+       ubyte emptyWEMTable[header.wemEntryTableSize]<bgcolor=cBlack>;
+    }
+    else
+    {
+       EntryType1Table entryTable2<name="WEM Entry Table", comment="WEM file entries">;
+    }
+
+    // WEM Type 2 Entry Table
+    if (header.wemType2EntryTableSize == 4)
+    {
+       ubyte emptyWEMType2Table[header.wemType2EntryTableSize]<bgcolor=cBlack>;
+    }
+    else
+    {
+       EntryType2Table entryTable3<name="WEM Type 2 Entry Table", comment="WEM Type 2 file entries">;
+    }
+}File<open=true, name="Genshin Impact Music PCK">;
