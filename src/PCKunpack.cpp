@@ -97,71 +97,43 @@ int ParsePCKCategoryChunk(std::ifstream& pckFile)
     std::cout << "\n";
     std::cout << "PCKCategoryCount: " << pckCategoryCount << "\n";
 
-    uint32_t categoryChunkAmountRead = 4;
+    std::streampos categoryStringPos;
 
-    for (uint32_t i = 0; i < pckCategoryCount; i++)
+    for (int i = 0; i < pckCategoryCount; i++)
     {
         ReadBytesUInt32(pckCategoryEntryTable.offset, pckFile);
         pckCategoryEntryTable.offset += 28;
 
         ReadBytesUInt32(pckCategoryEntryTable.id, pckFile);
-        categoryChunkAmountRead += 8;
 
         currentPos = pckFile.tellg();
         pckFile.seekg(pckCategoryEntryTable.offset);
 
         uint8_t categorySize = 0;
-        uint8_t b = 0;
-        uint32_t pos = pckCategoryEntryTable.offset;
-        uint16_t b2;
+        uint16_t b = 0;
         std::string category;
 
         while (true)
         {
-            pckFile.read(reinterpret_cast<char*>(&b), 1);
+            ReadBytesUInt16(b, pckFile);
 
             if (b == 0)
             {
-                pos++;
-                categoryChunkAmountRead++;
-                ReadBytesUInt16(b2, pckFile);
-
-                if (b2 == 0)
-                {
-                    categoryChunkAmountRead += 2;
-                    break;
-                }
-                else
-                {
-                    pckFile.seekg(pos);
-                }
+                categoryStringPos = pckFile.tellg();
+                break;
             }
             else
             {
                 category += b;
-                pos++;
-                categoryChunkAmountRead++;
             }
         }
 
         std::cout << category << " " << pckCategoryEntryTable.id << "\n";
         categoryDict.insert({ pckCategoryEntryTable.id, category});
-
-        if (i != pckCategoryCount - 1)
-        {
-            pckFile.seekg(currentPos);
-        }
-    }
-
-    currentPos = pckFile.tellg();
-    uint32_t categoryChunkRemaining = header.pckCategoryChunkSize - categoryChunkAmountRead;
-
-    if (categoryChunkRemaining != 0)
-    {
-        currentPos += categoryChunkRemaining;
         pckFile.seekg(currentPos);
-        currentPos = pckFile.tellg();
     }
+
+    pckFile.seekg(categoryStringPos);
 
     std::cout << "\n";
 
